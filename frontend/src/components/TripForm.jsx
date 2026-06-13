@@ -1,4 +1,7 @@
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Alert,
   Box,
   Button,
@@ -10,7 +13,7 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import { Clock3, Crosshair, Navigation, Route, Warehouse } from "lucide-react";
+import { Building2, ChevronDown, Clock3, Crosshair, Home, IdCard, Navigation, Route, Truck, UserRound, Warehouse } from "lucide-react";
 
 function FieldIcon({ children }) {
   return <InputAdornment position="start">{children}</InputAdornment>;
@@ -122,6 +125,82 @@ export function TripForm({ values, onChange, onSubmit, loading, locating, onUseC
             ),
           }}
         />
+
+        <Accordion className="log-details" defaultExpanded disableGutters elevation={0}>
+          <AccordionSummary expandIcon={<ChevronDown size={18} />}>
+            <Typography variant="h3">Logbook header details</Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <Stack spacing={1.5}>
+              <TextField
+                label="Driver name"
+                value={values.driverName}
+                onChange={(event) => updateField("driverName", event.target.value)}
+                placeholder="Driver full name"
+                InputProps={{
+                  startAdornment: (
+                    <FieldIcon>
+                      <UserRound size={18} />
+                    </FieldIcon>
+                  ),
+                }}
+              />
+              <TextField
+                label="Truck / tractor and trailer numbers"
+                value={values.truckTrailerNumber}
+                onChange={(event) => updateField("truckTrailerNumber", event.target.value)}
+                placeholder="Truck 1042 / Trailer 2209"
+                InputProps={{
+                  startAdornment: (
+                    <FieldIcon>
+                      <Truck size={18} />
+                    </FieldIcon>
+                  ),
+                }}
+              />
+              <TextField
+                label="Carrier name"
+                value={values.carrierName}
+                onChange={(event) => updateField("carrierName", event.target.value)}
+                placeholder="Carrier company"
+                InputProps={{
+                  startAdornment: (
+                    <FieldIcon>
+                      <IdCard size={18} />
+                    </FieldIcon>
+                  ),
+                }}
+              />
+              <TextField
+                label="Main office address"
+                value={values.mainOfficeAddress}
+                onChange={(event) => updateField("mainOfficeAddress", event.target.value)}
+                placeholder="Main office city, state or full address"
+                InputProps={{
+                  startAdornment: (
+                    <FieldIcon>
+                      <Building2 size={18} />
+                    </FieldIcon>
+                  ),
+                }}
+              />
+              <TextField
+                label="Home terminal address"
+                value={values.homeTerminalAddress}
+                onChange={(event) => updateField("homeTerminalAddress", event.target.value)}
+                placeholder="Home terminal city, state or full address"
+                helperText="Printed on each daily log sheet header."
+                InputProps={{
+                  startAdornment: (
+                    <FieldIcon>
+                      <Home size={18} />
+                    </FieldIcon>
+                  ),
+                }}
+              />
+            </Stack>
+          </AccordionDetails>
+        </Accordion>
 
         <Button
           type="submit"

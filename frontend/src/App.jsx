@@ -11,6 +11,11 @@ const initialValues = {
   pickupLocation: "Austin, TX",
   dropoffLocation: "Denver, CO",
   currentCycleUsedHours: "12",
+  driverName: "Assessment Driver",
+  truckTrailerNumber: "Truck 1042 / Trailer 2209",
+  carrierName: "Spotter Demo Carrier",
+  mainOfficeAddress: "Dallas, TX",
+  homeTerminalAddress: "Dallas, TX",
 };
 
 export default function App() {

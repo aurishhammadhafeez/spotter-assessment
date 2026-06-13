@@ -92,6 +92,29 @@ body {
   align-items: center;
 }
 
+.log-details {
+  border: 1px solid #e4e8f0;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.log-details::before {
+  display: none;
+}
+
+.log-details .MuiAccordionSummary-root {
+  min-height: 44px;
+  padding: 0 12px;
+}
+
+.log-details .MuiAccordionSummary-content {
+  margin: 10px 0;
+}
+
+.log-details .MuiAccordionDetails-root {
+  padding: 0 12px 12px;
+}
+
 .main-panel {
   min-width: 0;
 }
@@ -364,4 +387,3 @@ body {
     height: 360px;
   }
 }
-

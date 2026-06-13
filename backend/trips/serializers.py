@@ -6,6 +6,11 @@ class TripPlanRequestSerializer(serializers.Serializer):
     pickupLocation = serializers.CharField(max_length=240, trim_whitespace=True)
     dropoffLocation = serializers.CharField(max_length=240, trim_whitespace=True)
     currentCycleUsedHours = serializers.FloatField(min_value=0, max_value=70)
+    driverName = serializers.CharField(max_length=80, trim_whitespace=True, required=False, allow_blank=True)
+    truckTrailerNumber = serializers.CharField(max_length=120, trim_whitespace=True, required=False, allow_blank=True)
+    carrierName = serializers.CharField(max_length=120, trim_whitespace=True, required=False, allow_blank=True)
+    mainOfficeAddress = serializers.CharField(max_length=160, trim_whitespace=True, required=False, allow_blank=True)
+    homeTerminalAddress = serializers.CharField(max_length=160, trim_whitespace=True, required=False, allow_blank=True)
 
 
 class ReverseGeocodeRequestSerializer(serializers.Serializer):

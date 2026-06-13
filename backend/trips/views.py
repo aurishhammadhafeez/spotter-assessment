@@ -24,7 +24,17 @@ class PlanTripView(APIView):
             return Response({"detail": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
 
         plan = HosPlanner(route, data["currentCycleUsedHours"]).build()
-        log_sheets = render_log_sheets(plan["events"], route)
+        log_sheets = render_log_sheets(
+            plan["events"],
+            route,
+            log_details={
+                "driverName": data.get("driverName"),
+                "truckTrailerNumber": data.get("truckTrailerNumber"),
+                "carrierName": data.get("carrierName"),
+                "mainOfficeAddress": data.get("mainOfficeAddress"),
+                "homeTerminalAddress": data.get("homeTerminalAddress"),
+            },
+        )
 
         return Response(
             {

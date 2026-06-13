@@ -28,6 +28,26 @@ class TripPlanApiTests(TestCase):
         self.assertGreater(len(response.data["events"]), 0)
         self.assertEqual(response.data["logSheets"][0]["totals"]["total"], 24.0)
 
+    @patch("trips.views.MapClient.build_trip_route")
+    def test_plan_endpoint_accepts_logbook_header_details(self, mock_route):
+        mock_route.return_value = fake_route()
+
+        response = self.client.post(
+            "/api/trips/plan/",
+            {
+                **self.payload,
+                "driverName": "Aurish Hammad",
+                "truckTrailerNumber": "Truck 77 / Trailer 88",
+                "carrierName": "Spotter Demo Carrier",
+                "mainOfficeAddress": "Dallas, TX",
+                "homeTerminalAddress": "Dallas Terminal, Dallas, TX",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["logSheets"][0]["totals"]["total"], 24.0)
+
     def test_plan_endpoint_rejects_invalid_cycle_hours(self):
         response = self.client.post(
             "/api/trips/plan/",

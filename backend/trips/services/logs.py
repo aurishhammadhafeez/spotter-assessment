@@ -37,6 +37,65 @@ STATUS_LABELS = {
     "driving": "Driving",
     "on_duty": "On duty",
 }
+DEFAULT_LOG_DETAILS = {
+    "driverName": "Assessment Driver",
+    "truckTrailerNumber": "Truck 1042 / Trailer 2209",
+    "carrierName": "Spotter Demo Carrier",
+    "mainOfficeAddress": "Dallas, TX",
+    "homeTerminalAddress": "Dallas, TX",
+}
+US_STATE_ABBREVIATIONS = {
+    "Alabama": "AL",
+    "Alaska": "AK",
+    "Arizona": "AZ",
+    "Arkansas": "AR",
+    "California": "CA",
+    "Colorado": "CO",
+    "Connecticut": "CT",
+    "Delaware": "DE",
+    "Florida": "FL",
+    "Georgia": "GA",
+    "Hawaii": "HI",
+    "Idaho": "ID",
+    "Illinois": "IL",
+    "Indiana": "IN",
+    "Iowa": "IA",
+    "Kansas": "KS",
+    "Kentucky": "KY",
+    "Louisiana": "LA",
+    "Maine": "ME",
+    "Maryland": "MD",
+    "Massachusetts": "MA",
+    "Michigan": "MI",
+    "Minnesota": "MN",
+    "Mississippi": "MS",
+    "Missouri": "MO",
+    "Montana": "MT",
+    "Nebraska": "NE",
+    "Nevada": "NV",
+    "New Hampshire": "NH",
+    "New Jersey": "NJ",
+    "New Mexico": "NM",
+    "New York": "NY",
+    "North Carolina": "NC",
+    "North Dakota": "ND",
+    "Ohio": "OH",
+    "Oklahoma": "OK",
+    "Oregon": "OR",
+    "Pennsylvania": "PA",
+    "Rhode Island": "RI",
+    "South Carolina": "SC",
+    "South Dakota": "SD",
+    "Tennessee": "TN",
+    "Texas": "TX",
+    "Utah": "UT",
+    "Vermont": "VT",
+    "Virginia": "VA",
+    "Washington": "WA",
+    "West Virginia": "WV",
+    "Wisconsin": "WI",
+    "Wyoming": "WY",
+}
 
 
 def _font(size: int):
@@ -71,7 +130,14 @@ def _draw_box_field(draw: ImageDraw.ImageDraw, label: str, value: str, x: int, y
     draw.text((x + 10, y + 28), _clip_text(value, max(10, width // 12)), fill=INK, font=value_font)
 
 
-def _draw_template(log_date: date, from_location: str, to_location: str, daily_miles: float, cumulative_miles: float) -> Image.Image:
+def _draw_template(
+    log_date: date,
+    from_location: str,
+    to_location: str,
+    daily_miles: float,
+    cumulative_miles: float,
+    log_details: dict,
+) -> Image.Image:
     image = Image.new("RGBA", (CANVAS_WIDTH, CANVAS_HEIGHT), "#ffffff")
     draw = ImageDraw.Draw(image)
     title = _font(42)
@@ -104,11 +170,11 @@ def _draw_template(log_date: date, from_location: str, to_location: str, daily_m
     _draw_line_field(draw, "To:", to_location, 850, 135, 1450 - 850, label, small)
     _draw_box_field(draw, "Total miles driving today", f"{daily_miles:,.1f} mi", PAGE_MARGIN, 215, 260, 54, tiny, small)
     _draw_box_field(draw, "Total mileage today", f"{cumulative_miles:,.1f} mi", 345, 215, 260, 54, tiny, small)
-    _draw_line_field(draw, "Driver:", "Assessment Driver", PAGE_MARGIN, 178, 330, label, small)
-    _draw_line_field(draw, "Truck/trailer:", "Truck 1042 / Trailer 2209", 420, 178, 330, label, small)
-    _draw_line_field(draw, "Carrier:", "Spotter Demo Carrier", 850, 178, 1450 - 850, label, small)
-    _draw_line_field(draw, "Main office:", "Django + React assessment", 850, 220, 1450 - 850, label, small)
-    _draw_line_field(draw, "Home terminal:", "Dallas, TX", 850, 262, 1450 - 850, label, small)
+    _draw_line_field(draw, "Driver:", log_details["driverName"], PAGE_MARGIN, 178, 330, label, small)
+    _draw_line_field(draw, "Truck/trailer:", log_details["truckTrailerNumber"], 420, 178, 330, label, small)
+    _draw_line_field(draw, "Carrier:", log_details["carrierName"], 850, 178, 1450 - 850, label, small)
+    _draw_line_field(draw, "Main office:", log_details["mainOfficeAddress"], 850, 220, 1450 - 850, label, small)
+    _draw_line_field(draw, "Home terminal:", log_details["homeTerminalAddress"], 850, 262, 1450 - 850, label, small)
 
     draw.rectangle((GRID_LEFT, TIME_BAND_TOP, GRID_RIGHT, TIME_BAND_BOTTOM), fill=INK)
     draw.rectangle((TOTAL_LEFT, TIME_BAND_TOP, TOTAL_RIGHT, TIME_BAND_BOTTOM), fill=INK)
@@ -171,11 +237,31 @@ def _draw_template(log_date: date, from_location: str, to_location: str, daily_m
 
 
 def _clip_text(text: str, limit: int) -> str:
-    return text if len(text) <= limit else text[: limit - 1] + "-"
+    return text if len(text) <= limit else text[: max(0, limit - 3)].rstrip() + "..."
 
 
 def _remark_location(location: str) -> str:
-    return location.replace("Route mile", "mi")
+    compact = _city_state(location)
+    return compact.replace("Route mile", "mi")
+
+
+def _city_state(location: str) -> str:
+    parts = [part.strip() for part in location.split(",") if part.strip()]
+    while parts and parts[-1] in {"United States", "USA", "US"}:
+        parts.pop()
+
+    if len(parts) < 2:
+        return location
+
+    state = parts[-1]
+    normalized_state = US_STATE_ABBREVIATIONS.get(state, state)
+    if len(normalized_state) != 2:
+        return ", ".join(parts[:2])
+
+    previous = parts[-2]
+    previous_is_region = any(token in previous.lower() for token in ["county", "township", "municipality"])
+    city = parts[0] if previous_is_region else previous
+    return f"{city}, {normalized_state}"
 
 
 def _remark_label(label: str) -> str:
@@ -262,7 +348,20 @@ def _mileage_totals(segments: list[dict]) -> tuple[float, float]:
     return daily_miles, cumulative_miles
 
 
-def render_log_sheets(events: list[dict], route: dict, start_date: date | None = None) -> list[dict]:
+def _log_details(overrides: dict | None) -> dict:
+    details = DEFAULT_LOG_DETAILS.copy()
+    for key, value in (overrides or {}).items():
+        if value:
+            details[key] = value
+    return details
+
+
+def render_log_sheets(
+    events: list[dict],
+    route: dict,
+    start_date: date | None = None,
+    log_details: dict | None = None,
+) -> list[dict]:
     if not events:
         return []
 
@@ -272,6 +371,7 @@ def render_log_sheets(events: list[dict], route: dict, start_date: date | None =
     base_date = start_date or date.today()
     from_location = route["waypoints"][0]["location"] if route.get("waypoints") else "Current"
     to_location = route["waypoints"][-1]["location"] if route.get("waypoints") else "Dropoff"
+    header_details = _log_details(log_details)
 
     for day_index in range(day_count):
         log_date = base_date + timedelta(days=day_index)
@@ -279,7 +379,7 @@ def render_log_sheets(events: list[dict], route: dict, start_date: date | None =
         totals = _totals(segments)
         daily_miles, cumulative_miles = _mileage_totals(segments)
         active_total = round(totals.get("driving", 0) + totals.get("on_duty", 0), 2)
-        image = _draw_template(log_date, from_location, to_location, daily_miles, cumulative_miles)
+        image = _draw_template(log_date, from_location, to_location, daily_miles, cumulative_miles, header_details)
         draw = ImageDraw.Draw(image)
         remarks_font = _font(18)
         totals_font = _font(22)
