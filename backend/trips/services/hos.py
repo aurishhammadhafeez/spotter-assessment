@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 from .maps import interpolate_point
+from .locations import compact_city_state
 
 
 DRIVE_LIMIT_HOURS = 11.0
@@ -33,10 +34,7 @@ def _round(value: float, digits: int = 2) -> float:
 
 
 def _display_location(value: str) -> str:
-    parts = [part.strip() for part in value.split(",") if part.strip()]
-    if len(parts) >= 2:
-        return ", ".join(parts[:2])
-    return value[:48]
+    return compact_city_state(value)
 
 
 class HosPlanner:

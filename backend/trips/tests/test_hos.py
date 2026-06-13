@@ -3,11 +3,22 @@ from datetime import date
 from django.test import SimpleTestCase
 
 from trips.services.hos import HosPlanner
+from trips.services.locations import compact_city_state
 from trips.services.logs import render_log_sheets
 from trips.tests.helpers import fake_route
 
 
 class HosPlannerTests(SimpleTestCase):
+    def test_compact_location_prefers_city_and_state_for_log_remarks(self):
+        self.assertEqual(
+            compact_city_state("Chicago Public Schools Headquarters, Chicago, IL, United States"),
+            "Chicago, IL",
+        )
+        self.assertEqual(
+            compact_city_state("Chicago, South Chicago Township, Cook County, Illinois, United States"),
+            "Chicago, IL",
+        )
+
     def test_short_trip_generates_pickup_dropoff_and_single_log(self):
         route = fake_route(distance_miles=520, duration_hours=8)
         plan = HosPlanner(route, current_cycle_used_hours=12).build()
