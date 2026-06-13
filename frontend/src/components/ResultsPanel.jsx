@@ -7,6 +7,8 @@ import { Metric } from "./Metric.jsx";
 import { Timeline } from "./Timeline.jsx";
 
 export function ResultsPanel({ plan, loading }) {
+  // Keep the empty/loading/success states explicit so the first screen works
+  // before any API request has completed.
   if (loading && !plan) {
     return (
       <Box className="results-shell loading-results">
@@ -63,6 +65,8 @@ export function ResultsPanel({ plan, loading }) {
       </Box>
 
       {plan.warnings?.map((warning) => (
+        // Warnings are produced by the HOS planner, for example when a restart
+        // is needed because the 70-hour cycle is exhausted.
         <Alert key={warning} severity="warning">
           {warning}
         </Alert>

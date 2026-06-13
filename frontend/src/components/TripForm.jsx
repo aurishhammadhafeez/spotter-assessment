@@ -20,6 +20,7 @@ function FieldIcon({ children }) {
 }
 
 export function TripForm({ values, onChange, onSubmit, loading, locating, onUseCurrentLocation }) {
+  // The cycle value is the only numeric form field with a regulatory boundary.
   const cycle = Number(values.currentCycleUsedHours);
   const isCycleValid = values.currentCycleUsedHours !== "" && cycle >= 0 && cycle <= 70;
   const isReady =
@@ -29,6 +30,7 @@ export function TripForm({ values, onChange, onSubmit, loading, locating, onUseC
     isCycleValid;
 
   function updateField(field, value) {
+    // Keep TripForm controlled but stateless; App owns the full payload.
     onChange({ ...values, [field]: value });
   }
 
@@ -127,6 +129,8 @@ export function TripForm({ values, onChange, onSubmit, loading, locating, onUseC
         />
 
         <Accordion className="log-details" defaultExpanded disableGutters elevation={0}>
+          {/* These optional fields do not affect routing, but they make the
+             generated paper log resemble a real driver logbook. */}
           <AccordionSummary expandIcon={<ChevronDown size={18} />}>
             <Typography variant="h3">Logbook header details</Typography>
           </AccordionSummary>
@@ -223,6 +227,8 @@ export function TripForm({ values, onChange, onSubmit, loading, locating, onUseC
         </Box>
 
         <Box className="assumption-box">
+          {/* The assumptions are visible in the UI so the assessment reviewer can
+             see which HOS rules the planner implements. */}
           <Typography variant="h3">Planner assumptions</Typography>
           <ul>
             <li>Property-carrying driver</li>

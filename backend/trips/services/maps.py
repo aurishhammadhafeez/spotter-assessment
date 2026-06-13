@@ -7,11 +7,15 @@ from django.conf import settings
 
 
 class MapServiceError(Exception):
+    """Raised when a public map service cannot satisfy a trip request."""
+
     pass
 
 
 @dataclass(frozen=True)
 class GeoPoint:
+    """Normalized point shape used after geocoding."""
+
     label: str
     lat: float
     lng: float
@@ -19,6 +23,8 @@ class GeoPoint:
 
 
 def haversine_miles(a: dict, b: dict) -> float:
+    """Estimate miles between two route-geometry points."""
+
     radius_miles = 3958.8
     lat1 = math.radians(a["lat"])
     lat2 = math.radians(b["lat"])
@@ -29,6 +35,12 @@ def haversine_miles(a: dict, b: dict) -> float:
 
 
 def interpolate_point(points: list[dict], target_miles: float) -> dict:
+    """Find an approximate coordinate at a route-mile marker.
+
+    OSRM returns a polyline but not one point per mile. This helper lets the HOS
+    planner place fuel/rest markers along that polyline at route-mile positions.
+    """
+
     if not points:
         return {"lat": 0.0, "lng": 0.0}
     if target_miles <= 0:
@@ -48,11 +60,15 @@ def interpolate_point(points: list[dict], target_miles: float) -> dict:
 
 
 class MapClient:
+    """Small wrapper around public geocoding and routing APIs."""
+
     def __init__(self, session=None):
         self.session = session or requests.Session()
         self.headers = {"User-Agent": settings.MAP_USER_AGENT}
 
     def geocode(self, label: str, query: str) -> GeoPoint:
+        # Let users paste GPS coordinates directly. This is useful for a truck's
+        # current position and avoids a geocoding round trip.
         coordinate_match = re.match(r"^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$", query)
         if coordinate_match:
             lat = float(coordinate_match.group(1))
@@ -60,8 +76,11 @@ class MapClient:
             return GeoPoint(label=label, lat=lat, lng=lng, display_name=f"{lat:.5f}, {lng:.5f}")
 
         try:
+            # Nominatim is the primary OpenStreetMap geocoder.
             return self._geocode_nominatim(label, query)
         except MapServiceError:
+            # Photon keeps the hosted demo resilient if Nominatim rate-limits or
+            # rejects the Render environment.
             return self._geocode_photon(label, query)
 
     def reverse_geocode(self, lat: float, lng: float) -> dict:
@@ -160,6 +179,8 @@ class MapClient:
 
     def _photon_search_params(self, query: str) -> dict:
         params = {"q": query, "limit": 1}
+        # City/state inputs are common in demos. Photon may prefer exact places
+        # over unrelated businesses when this tag is present.
         if not re.search(r"\d", query):
             params["osm_tag"] = "place:city"
         return params
@@ -189,6 +210,8 @@ class MapClient:
         return ", ".join(dict.fromkeys(part for part in parts if part))
 
     def route(self, points: list[GeoPoint]) -> dict:
+        # OSRM expects "lng,lat;lng,lat" while Leaflet expects "lat,lng", so the
+        # response is normalized before it leaves this service.
         coordinate_path = ";".join(f"{point.lng},{point.lat}" for point in points)
         response = self.session.get(
             f"{settings.OSRM_BASE_URL}/route/v1/driving/{coordinate_path}",
@@ -225,6 +248,7 @@ class MapClient:
         }
 
     def build_trip_route(self, current: str, pickup: str, dropoff: str) -> dict:
+        # The requested trip is modeled as current -> pickup -> dropoff.
         waypoints = [
             self.geocode("Current", current),
             self.geocode("Pickup", pickup),

@@ -10,6 +10,8 @@ const statusLabel = {
 };
 
 export function Timeline({ events }) {
+  // Events are absolute trip-time records from the backend; formatters turn
+  // them into Day N clock labels for humans.
   if (!events?.length) {
     return null;
   }
@@ -37,4 +39,3 @@ export function Timeline({ events }) {
     </Box>
   );
 }
-

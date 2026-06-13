@@ -6,6 +6,7 @@ import { RouteMap } from "./components/RouteMap.jsx";
 import { ResultsPanel } from "./components/ResultsPanel.jsx";
 import { planTrip, reverseGeocode } from "./lib/api.js";
 
+// Demo defaults keep the first screen usable immediately during a reviewer demo.
 const initialValues = {
   currentLocation: "Dallas, TX",
   pickupLocation: "Austin, TX",
@@ -19,6 +20,8 @@ const initialValues = {
 };
 
 export default function App() {
+  // App owns the request/result state; presentational components receive the
+  // current form values and generated plan through props.
   const [formValues, setFormValues] = useState(initialValues);
   const [plan, setPlan] = useState(null);
   const [error, setError] = useState("");
@@ -40,6 +43,7 @@ export default function App() {
     setLoading(true);
     setError("");
     try {
+      // Keep form state string-friendly, but send numeric cycle hours to DRF.
       const response = await planTrip({
         ...values,
         currentCycleUsedHours: Number(values.currentCycleUsedHours),
@@ -70,6 +74,8 @@ export default function App() {
         });
       });
       const { latitude, longitude } = position.coords;
+      // Reverse geocoding gives the driver a readable current address while
+      // still falling back to raw coordinates if a public geocoder fails.
       const location = await reverseGeocode({ lat: latitude, lng: longitude });
       setFormValues((current) => ({
         ...current,

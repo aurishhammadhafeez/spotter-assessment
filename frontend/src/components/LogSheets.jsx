@@ -8,6 +8,8 @@ export function LogSheets({ sheets }) {
     return null;
   }
 
+  // The backend returns PNGs as data URLs, so preview and download can share
+  // the same generated image without another request.
   return (
     <Box className="log-section">
       <Typography variant="h2">Daily log sheets</Typography>
@@ -37,4 +39,3 @@ export function LogSheets({ sheets }) {
     </Box>
   );
 }
-

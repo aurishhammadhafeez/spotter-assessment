@@ -1,4 +1,5 @@
 export function formatHours(value) {
+  // Backend values are decimal hours; UI labels read better as hours/minutes.
   const number = Number(value || 0);
   const hours = Math.floor(number);
   const minutes = Math.round((number - hours) * 60);
@@ -12,6 +13,7 @@ export function formatHours(value) {
 }
 
 export function formatClock(absoluteHour) {
+  // HOS events are measured from trip start, so convert 26.5 -> Day 2, 02:30.
   const day = Math.floor(absoluteHour / 24) + 1;
   const hourInDay = absoluteHour % 24;
   const hour = Math.floor(hourInDay);
@@ -20,9 +22,9 @@ export function formatClock(absoluteHour) {
 }
 
 export function downloadDataUrl(dataUrl, filename) {
+  // Used for generated PNG log sheets returned as base64 data URLs.
   const link = document.createElement("a");
   link.href = dataUrl;
   link.download = filename;
   link.click();
 }
-

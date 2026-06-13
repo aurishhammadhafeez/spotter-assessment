@@ -5,6 +5,8 @@ import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from "react-
 const fallbackCenter = [39.8283, -98.5795];
 
 function markerIcon(type) {
+  // Leaflet div icons let us style marker types with CSS instead of bundling
+  // separate image assets.
   const classes = {
     current: "marker marker-current",
     pickup: "marker marker-pickup",
@@ -24,6 +26,7 @@ function markerIcon(type) {
 function FitBounds({ data }) {
   const map = useMap();
   if (data?.geometry?.length) {
+    // Fit the route after each successful plan so long trips remain visible.
     const bounds = L.latLngBounds(data.geometry.map((point) => [point.lat, point.lng]));
     map.fitBounds(bounds.pad(0.18), { animate: false });
   }
@@ -31,6 +34,8 @@ function FitBounds({ data }) {
 }
 
 export function RouteMap({ data, loading }) {
+  // Backend geometry is already normalized to { lat, lng }; Leaflet needs
+  // [lat, lng] tuples for polylines and markers.
   const line = data?.geometry?.map((point) => [point.lat, point.lng]) || [];
   const center = line[0] || fallbackCenter;
   const waypoints = data?.waypoints || [];
@@ -99,4 +104,3 @@ export function RouteMap({ data, loading }) {
     </Box>
   );
 }
-

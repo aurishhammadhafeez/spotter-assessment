@@ -8,6 +8,8 @@ from PIL import Image, ImageDraw, ImageFont
 from .locations import compact_city_state
 
 
+# Pixel coordinates for the generated paper log. Keeping them as constants makes
+# the drawing math easier to audit and tune.
 CANVAS_WIDTH = 1700
 CANVAS_HEIGHT = 1100
 PAGE_MARGIN = 58
@@ -49,6 +51,8 @@ DEFAULT_LOG_DETAILS = {
 
 
 def _font(size: int):
+    """Load a common system font across macOS and Linux/Render."""
+
     candidates = [
         "/System/Library/Fonts/Supplemental/Arial.ttf",
         "/Library/Fonts/Arial.ttf",
@@ -88,6 +92,8 @@ def _draw_template(
     cumulative_miles: float,
     log_details: dict,
 ) -> Image.Image:
+    """Draw the static paper-log frame before duty lines and remarks are added."""
+
     image = Image.new("RGBA", (CANVAS_WIDTH, CANVAS_HEIGHT), "#ffffff")
     draw = ImageDraw.Draw(image)
     title = _font(42)
@@ -135,6 +141,7 @@ def _draw_template(
         draw.line((GRID_LEFT, y, GRID_RIGHT, y), fill=GRID, width=2)
         draw.line((TOTAL_LEFT, y, TOTAL_RIGHT, y), fill=GRID, width=2)
 
+    # 24 hours * 4 quarters + the final midnight line = 97 grid lines.
     for index in range(97):
         hour = index / 4
         x = _hour_to_x(hour)
@@ -191,6 +198,8 @@ def _clip_text(text: str, limit: int) -> str:
 
 
 def _remark_location(location: str) -> str:
+    # Route-mile remarks are generated stops; city/state remarks are real duty
+    # status locations from pickup/dropoff/pre-trip waypoints.
     compact = _city_state(location)
     return compact.replace("Route mile", "mi")
 
@@ -210,6 +219,8 @@ def _remark_label(label: str) -> str:
 
 
 def _day_segments(events: list[dict], day_index: int) -> list[dict]:
+    """Clip absolute trip events into one midnight-to-midnight log page."""
+
     day_start = day_index * 24
     day_end = day_start + 24
     clipped = []
@@ -219,6 +230,8 @@ def _day_segments(events: list[dict], day_index: int) -> list[dict]:
         if end > start:
             clipped_event = {**event, "start": start - day_start, "end": end - day_start}
             if event["status"] == "driving" and event.get("distanceMiles"):
+                # If a driving event crosses midnight, split route mileage
+                # proportionally so each daily log has correct miles.
                 event_start = event["startHour"]
                 event_end = event["endHour"]
                 event_duration = max(event_end - event_start, 0.01)
@@ -236,6 +249,8 @@ def _day_segments(events: list[dict], day_index: int) -> list[dict]:
     cursor = 0.0
     for event in clipped:
         if event["start"] > cursor:
+            # Paper logs need a continuous 24-hour line, so fill any unplanned
+            # gaps with off-duty time.
             normalized.append(
                 {
                     "status": "off_duty",
@@ -273,6 +288,8 @@ def _totals(segments: list[dict]) -> dict:
 
 
 def _mileage_totals(segments: list[dict]) -> tuple[float, float]:
+    """Return daily driving miles and cumulative route mileage for a log page."""
+
     driving_segments = [segment for segment in segments if segment["status"] == "driving"]
     if not driving_segments:
         return 0.0, 0.0
@@ -284,6 +301,8 @@ def _mileage_totals(segments: list[dict]) -> tuple[float, float]:
 
 
 def _log_details(overrides: dict | None) -> dict:
+    """Merge optional form fields with demo-safe defaults for the log header."""
+
     details = DEFAULT_LOG_DETAILS.copy()
     for key, value in (overrides or {}).items():
         if value:
@@ -297,6 +316,8 @@ def render_log_sheets(
     start_date: date | None = None,
     log_details: dict | None = None,
 ) -> list[dict]:
+    """Render one base64 PNG log sheet per trip day."""
+
     if not events:
         return []
 
@@ -323,6 +344,8 @@ def render_log_sheets(
         prev_y = None
         prev_x = None
         for segment in segments:
+            # Draw the duty-status trace: horizontal lines show duration and
+            # vertical connectors show status changes.
             status = segment["status"]
             y = ROW_Y[status]
             start_x = _hour_to_x(segment["start"])
@@ -331,6 +354,8 @@ def render_log_sheets(
                 draw.line((start_x, prev_y, start_x, y), fill=BLUE, width=7)
             draw.line((start_x, y, end_x, y), fill=BLUE, width=7)
             if segment["type"] in {"pickup", "dropoff", "fuel", "inspection"}:
+                # The orange bracket mirrors the paper-log convention for
+                # non-driving work where the truck is not moving.
                 bracket_y = GRID_BOTTOM + 24
                 draw.line((start_x, bracket_y, end_x, bracket_y), fill=ORANGE, width=5)
                 draw.line((start_x, bracket_y, start_x, bracket_y - 16), fill=ORANGE, width=5)
@@ -340,6 +365,7 @@ def render_log_sheets(
 
         remark_count = 0
         for segment in segments:
+            # Remarks are required for every status change on a paper log.
             if segment["type"] == "gap" or remark_count >= 12:
                 continue
             hour = int(segment["start"])

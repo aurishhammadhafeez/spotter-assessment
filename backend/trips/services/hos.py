@@ -4,6 +4,8 @@ from .maps import interpolate_point
 from .locations import compact_city_state
 
 
+# HOS assumptions for a US property-carrying driver. The app is an assessment
+# planner, not an ELD-certified compliance product.
 DRIVE_LIMIT_HOURS = 11.0
 DUTY_WINDOW_HOURS = 14.0
 BREAK_AFTER_DRIVING_HOURS = 8.0
@@ -21,6 +23,8 @@ START_HOUR = 6.0
 
 @dataclass
 class ScheduleState:
+    """Mutable scheduling clock used while building the trip timeline."""
+
     clock: float = START_HOUR
     route_miles: float = 0.0
     cycle_used: float = 0.0
@@ -30,6 +34,7 @@ class ScheduleState:
 
 
 def _round(value: float, digits: int = 2) -> float:
+    # Tiny epsilon avoids values like 7.069999999 from leaking into API output.
     return round(value + 1e-9, digits)
 
 
@@ -38,6 +43,8 @@ def _display_location(value: str) -> str:
 
 
 class HosPlanner:
+    """Turn route legs into HOS events, stops, summaries, and warnings."""
+
     def __init__(self, route: dict, current_cycle_used_hours: float):
         self.route = route
         self.state = ScheduleState(cycle_used=float(current_cycle_used_hours))
@@ -49,6 +56,7 @@ class HosPlanner:
         self.waypoints = route.get("waypoints", [])
 
     def build(self) -> dict:
+        # Start every plan with a short on-duty pre-trip inspection.
         if self.state.cycle_used >= CYCLE_LIMIT_HOURS:
             self._add_restart("Cycle already at 70 hours before dispatch")
 
@@ -69,6 +77,8 @@ class HosPlanner:
         leg_targets = ["pickup", "dropoff"]
 
         for index, leg in enumerate(legs[:2]):
+            # Leg 1 ends at pickup; leg 2 ends at dropoff. Each endpoint adds
+            # one hour of on-duty, not-driving work.
             self._drive_leg(leg, leg_targets[index])
             if leg_targets[index] == "pickup":
                 self._add_active("on_duty", PICKUP_DURATION_HOURS, "Pickup loading paperwork", self._waypoint_location(1), "pickup")
@@ -103,6 +113,9 @@ class HosPlanner:
             miles_until_fuel = self.next_fuel_mile - self.state.route_miles
             hours_until_fuel = miles_until_fuel / mph if mph > 0 else remaining_hours
 
+            # Drive only until the next limiting rule is reached. The minimum
+            # across route, duty window, drive limit, break, fuel, and cycle
+            # tells us where the next event boundary belongs.
             drive_chunk = min(
                 remaining_hours,
                 DRIVE_LIMIT_HOURS - self.state.shift_driving,
@@ -122,6 +135,8 @@ class HosPlanner:
             remaining_hours -= drive_chunk
             remaining_miles -= miles_chunk
 
+            # After every driving chunk, schedule whichever non-driving event
+            # caused the boundary.
             if remaining_hours <= 0.01:
                 break
             if self.state.route_miles + 0.01 >= self.next_fuel_mile:
@@ -135,6 +150,8 @@ class HosPlanner:
                 self._add_restart("70-hour/8-day cycle limit reached")
 
     def _ensure_can_drive(self, force: bool = False) -> None:
+        """Insert a reset/break/restart if current state cannot keep driving."""
+
         if self.state.cycle_used >= CYCLE_LIMIT_HOURS - 0.01:
             self._add_restart("70-hour/8-day cycle limit reached")
             return
@@ -168,6 +185,7 @@ class HosPlanner:
         return event
 
     def _add_active(self, status: str, duration: float, label: str, location: str, event_type: str) -> None:
+        # On-duty and driving statuses count toward the 70-hour cycle.
         if self.state.cycle_used + duration > CYCLE_LIMIT_HOURS + 0.01:
             self._add_restart("70-hour/8-day cycle limit would be exceeded")
         event = self._add_event(status, duration, label, location, event_type)
@@ -177,6 +195,8 @@ class HosPlanner:
             self._add_stop_from_event(event)
 
     def _add_driving(self, duration: float, miles: float, label: str) -> None:
+        # Driving events keep both time and route-mile spans so daily log sheets
+        # can split mileage correctly across midnight.
         start_mile = self.state.route_miles
         location = f"Route mile {_round(self.state.route_miles, 1)}"
         event = self._add_event("driving", duration, label, location, "driving")
@@ -216,6 +236,8 @@ class HosPlanner:
         self._add_active("on_duty", FUEL_DURATION_HOURS, "Fuel stop", f"Route mile {_round(self.state.route_miles, 1)}", "fuel")
 
     def _add_stop_from_event(self, event: dict) -> None:
+        # Stops use approximate route coordinates so the frontend can show
+        # markers even for generated fuel/rest/reset events.
         point = interpolate_point(self.geometry, event["routeMile"])
         self.stops.append(
             {

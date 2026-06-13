@@ -1,3 +1,5 @@
+"""Shared location helpers for keeping UI and logbook text readable."""
+
 US_STATE_ABBREVIATIONS = {
     "Alabama": "AL",
     "Alaska": "AK",
@@ -53,6 +55,13 @@ US_STATE_ABBREVIATIONS = {
 
 
 def compact_city_state(location: str) -> str:
+    """Convert verbose geocoder names into logbook-friendly city/state text.
+
+    Nominatim and Photon can return long names such as
+    "Chicago Public Schools Headquarters, Chicago, IL, United States". The paper
+    log only needs the city/state remark, so this keeps the generated log clean.
+    """
+
     parts = [part.strip() for part in location.split(",") if part.strip()]
     while parts and parts[-1] in {"United States", "USA", "US"}:
         parts.pop()
@@ -66,6 +75,8 @@ def compact_city_state(location: str) -> str:
         return ", ".join(parts[:2])
 
     previous = parts[-2]
+    # Some Nominatim results include county/township between city and state.
+    # In that shape, the actual city is usually the first part.
     previous_is_region = any(token in previous.lower() for token in ["county", "township", "municipality"])
     city = parts[0] if previous_is_region else previous
     return f"{city}, {normalized_state}"
