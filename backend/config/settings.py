@@ -103,4 +103,5 @@ REST_FRAMEWORK = {
 
 NOMINATIM_BASE_URL = os.environ.get("NOMINATIM_BASE_URL", "https://nominatim.openstreetmap.org")
 OSRM_BASE_URL = os.environ.get("OSRM_BASE_URL", "https://router.project-osrm.org")
+PHOTON_BASE_URL = os.environ.get("PHOTON_BASE_URL", "https://photon.komoot.io")
 MAP_USER_AGENT = os.environ.get("MAP_USER_AGENT", "SpotterAssessment/1.0")

@@ -50,7 +50,7 @@ class PlanTripView(APIView):
                 "logSheets": log_sheets,
                 "warnings": plan["warnings"],
                 "attribution": {
-                    "geocoding": "OpenStreetMap Nominatim",
+                    "geocoding": "OpenStreetMap Nominatim with Photon fallback",
                     "routing": "OSRM public demo server",
                     "tiles": "OpenStreetMap contributors",
                 },

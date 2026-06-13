@@ -59,6 +59,35 @@ class MapClient:
             lng = float(coordinate_match.group(2))
             return GeoPoint(label=label, lat=lat, lng=lng, display_name=f"{lat:.5f}, {lng:.5f}")
 
+        try:
+            return self._geocode_nominatim(label, query)
+        except MapServiceError:
+            return self._geocode_photon(label, query)
+
+    def reverse_geocode(self, lat: float, lng: float) -> dict:
+        try:
+            payload = self._reverse_nominatim(lat, lng)
+            address = payload.get("address") or {}
+            location = payload.get("display_name") or f"{lat:.5f}, {lng:.5f}"
+        except MapServiceError:
+            feature = self._reverse_photon(lat, lng)
+            address = self._photon_address(feature)
+            location = self._photon_display_name(feature) or f"{lat:.5f}, {lng:.5f}"
+
+        city = address.get("city") or address.get("town") or address.get("village") or address.get("hamlet")
+        state = address.get("state")
+        state_code = address.get("state_code")
+        location_parts = [part for part in [city, state_code or state] if part]
+        short_location = ", ".join(location_parts)
+
+        return {
+            "location": location,
+            "shortLocation": short_location or f"{lat:.5f}, {lng:.5f}",
+            "lat": lat,
+            "lng": lng,
+        }
+
+    def _geocode_nominatim(self, label: str, query: str) -> GeoPoint:
         response = self.session.get(
             f"{settings.NOMINATIM_BASE_URL}/search",
             params={"q": query, "format": "json", "limit": 1, "addressdetails": 1},
@@ -80,7 +109,30 @@ class MapClient:
             display_name=match.get("display_name", query),
         )
 
-    def reverse_geocode(self, lat: float, lng: float) -> dict:
+    def _geocode_photon(self, label: str, query: str) -> GeoPoint:
+        response = self.session.get(
+            f"{settings.PHOTON_BASE_URL}/api/",
+            params=self._photon_search_params(query),
+            headers=self.headers,
+            timeout=15,
+        )
+        if response.status_code >= 400:
+            raise MapServiceError(f"Unable to geocode {label}.")
+
+        features = response.json().get("features") or []
+        if not features:
+            raise MapServiceError(f"No map result found for {label}: {query}")
+
+        feature = features[0]
+        lng, lat = feature["geometry"]["coordinates"]
+        return GeoPoint(
+            label=label,
+            lat=float(lat),
+            lng=float(lng),
+            display_name=self._photon_display_name(feature) or query,
+        )
+
+    def _reverse_nominatim(self, lat: float, lng: float) -> dict:
         response = self.session.get(
             f"{settings.NOMINATIM_BASE_URL}/reverse",
             params={"lat": lat, "lon": lng, "format": "json", "zoom": 18, "addressdetails": 1},
@@ -89,21 +141,52 @@ class MapClient:
         )
         if response.status_code >= 400:
             raise MapServiceError("Unable to identify current location.")
+        return response.json()
 
-        payload = response.json()
-        address = payload.get("address") or {}
-        city = address.get("city") or address.get("town") or address.get("village") or address.get("hamlet")
-        state = address.get("state")
-        state_code = address.get("state_code")
-        location_parts = [part for part in [city, state_code or state] if part]
-        short_location = ", ".join(location_parts)
+    def _reverse_photon(self, lat: float, lng: float) -> dict:
+        response = self.session.get(
+            f"{settings.PHOTON_BASE_URL}/reverse",
+            params={"lat": lat, "lon": lng, "limit": 1},
+            headers=self.headers,
+            timeout=15,
+        )
+        if response.status_code >= 400:
+            raise MapServiceError("Unable to identify current location.")
 
+        features = response.json().get("features") or []
+        if not features:
+            raise MapServiceError("Unable to identify current location.")
+        return features[0]
+
+    def _photon_search_params(self, query: str) -> dict:
+        params = {"q": query, "limit": 1}
+        if not re.search(r"\d", query):
+            params["osm_tag"] = "place:city"
+        return params
+
+    def _photon_address(self, feature: dict) -> dict:
+        properties = feature.get("properties") or {}
         return {
-            "location": payload.get("display_name") or f"{lat:.5f}, {lng:.5f}",
-            "shortLocation": short_location or f"{lat:.5f}, {lng:.5f}",
-            "lat": lat,
-            "lng": lng,
+            "city": properties.get("city") or properties.get("name"),
+            "town": properties.get("town"),
+            "village": properties.get("village"),
+            "hamlet": properties.get("hamlet"),
+            "state": properties.get("state"),
+            "state_code": properties.get("statecode") or properties.get("state"),
         }
+
+    def _photon_display_name(self, feature: dict) -> str:
+        properties = feature.get("properties") or {}
+        street = " ".join(
+            part for part in [properties.get("housenumber"), properties.get("street")] if part
+        )
+        parts = [
+            properties.get("name") or street,
+            properties.get("city"),
+            properties.get("state"),
+            properties.get("country"),
+        ]
+        return ", ".join(dict.fromkeys(part for part in parts if part))
 
     def route(self, points: list[GeoPoint]) -> dict:
         coordinate_path = ";".join(f"{point.lng},{point.lat}" for point in points)

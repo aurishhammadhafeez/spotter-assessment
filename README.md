@@ -18,7 +18,7 @@ A full-stack Django + React assessment project for planning property-carrying tr
 
 - Backend: Django, Django REST Framework, Pillow, Requests
 - Frontend: React, Vite, Material UI, Leaflet
-- Maps: Nominatim geocoding, OSRM routing, OpenStreetMap tiles
+- Maps: Nominatim geocoding with Photon fallback, OSRM routing, OpenStreetMap tiles
 
 ## Project Structure
 

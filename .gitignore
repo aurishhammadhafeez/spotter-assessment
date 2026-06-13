@@ -9,6 +9,7 @@ backend/media/
 backend/staticfiles/
 frontend/node_modules/
 frontend/dist/
+frontend/.vercel/
 .env
 .env.local
 
@@ -21,4 +22,3 @@ docs/assessment-email.md
 
 # Local generated inspection files
 *.log
-

@@ -58,7 +58,7 @@ export function ResultsPanel({ plan, loading }) {
 
         <Box className="attribution-row">
           <Route size={16} />
-          <span>Routing by OSRM, geocoding by Nominatim, map tiles by OpenStreetMap contributors.</span>
+          <span>Routing by OSRM, geocoding by Nominatim with Photon fallback, map tiles by OpenStreetMap contributors.</span>
         </Box>
       </Box>
 
@@ -99,4 +99,3 @@ export function ResultsPanel({ plan, loading }) {
     </Stack>
   );
 }
-

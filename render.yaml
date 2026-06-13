@@ -16,4 +16,5 @@ services:
         sync: false
       - key: MAP_USER_AGENT
         value: SpotterAssessment/1.0
-
+      - key: PHOTON_BASE_URL
+        value: https://photon.komoot.io
